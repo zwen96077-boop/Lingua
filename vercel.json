@@ -1,3 +1,7 @@
 {
-  "rewrites": [{ "source": "/api/translate", "destination": "/api/translate" }]
+  "functions": {
+    "api/translate.js": {
+      "memory": 1024
+    }
+  }
 }
