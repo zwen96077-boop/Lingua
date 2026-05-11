@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lingua — AI Translation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=DM+Sans:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&family=Lora:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #1a1714;
+  --paper: #f5f0e8;
+  --paper-warm: #ede6d6;
+  --accent: #c8602a;
+  --muted: #8a7f72;
+  --border: rgba(26,23,20,0.12);
+  --border-strong: rgba(26,23,20,0.25);
+  --sans: 'DM Sans', sans-serif;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --mono: 'DM Mono', monospace;
+  --text-size: 18px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.5;
+}
+
+.layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Header */
+header {
+  padding: 2.5rem 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 0.5px solid var(--border-strong);
+  animation: fadeDown 0.6s ease both;
+}
+
+.logo {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.logo em { font-style: italic; color: var(--accent); }
+
+/* Appearance button */
+.theme-btn {
+  background: none;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 6px 13px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s;
+}
+.theme-btn:hover { color: var(--ink); border-color: var(--ink); }
+.theme-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* Theme drawer */
+.theme-drawer {
+  border: 0.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--paper-warm);
+  padding: 22px;
+  display: none;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 1px;
+  animation: fadeUp 0.2s ease both;
+}
+.theme-drawer.open { display: flex; }
+
+.ts-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* Color swatches */
+.color-presets { display: flex; gap: 9px; flex-wrap: wrap; }
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2.5px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  outline: none;
+}
+.color-swatch:hover { transform: scale(1.12); }
+.color-swatch.active { border-color: var(--ink); }
+
+/* Custom color pickers */
+.custom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 2px;
+}
+.color-field { display: flex; flex-direction: column; gap: 5px; }
+.color-field label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.color-field input[type="color"] {
+  width: 100%;
+  height: 32px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 2px 3px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+/* Font options */
+.font-options { display: flex; flex-direction: column; gap: 6px; }
+.font-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 13px;
+  border: 0.5px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--paper);
+  transition: all 0.15s;
+}
+.font-option:hover { border-color: var(--border-strong); }
+.font-option.active { border-color: var(--accent); }
+.fo-name {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  width: 76px;
+  flex-shrink: 0;
+}
+.fo-preview {
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--ink);
+  line-height: 1;
+}
+
+/* Size slider */
+.size-row { display: flex; align-items: center; gap: 12px; }
+.size-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; height: 3px; }
+.size-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  min-width: 32px;
+  text-align: right;
+}
+.size-preview {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 300;
+  color: var(--ink);
+  line-height: 1;
+  font-size: var(--text-size);
+}
+
+.reset-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0;
+  transition: color 0.2s;
+}
+.reset-btn:hover { color: var(--accent); }
+
+/* Main */
+main {
+  padding: 2.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeUp 0.7s ease 0.1s both;
+}
+
+.lang-row { display: flex; align-items: center; gap: 1rem; }
+.lang-select-wrap { display: flex; align-items: center; gap: 0.5rem; flex: 1; }
+.lang-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+select {
+  appearance: none;
+  background: transparent;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 6px 28px 6px 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  flex: 1;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238a7f72' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.2s;
+}
+select:focus { outline: none; border-color: var(--accent); }
+
+.swap-btn {
+  background: none;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.swap-btn:hover { border-color: var(--accent); color: var(--accent); transform: rotate(180deg); }
+.swap-btn svg { width: 14px; height: 14px; }
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--paper);
+}
+.panel { display: flex; flex-direction: column; min-height: 280px; }
+.panel:first-child { border-right: 0.5px solid var(--border-strong); }
+
+.panel-header {
+  padding: 10px 16px;
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--paper-warm);
+}
+.panel-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.char-count { font-family: var(--mono); font-size: 10px; color: var(--muted); opacity: 0.6; }
+
+textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  padding: 20px;
+  font-family: var(--serif);
+  font-size: var(--text-size);
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--ink);
+  width: 100%;
+}
+textarea::placeholder { color: var(--muted); font-style: italic; }
+
+.output-panel {
+  flex: 1;
+  padding: 20px;
+  font-family: var(--serif);
+  font-size: var(--text-size);
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+.output-placeholder { color: var(--muted); font-style: italic; }
+
+.cursor-blink {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  margin-left: 1px;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.action-bar { display: flex; align-items: center; justify-content: space-between; }
+
+.status {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.4; transform:scale(0.8); }
+}
+
+.btn-row { display: flex; gap: 8px; align-items: center; }
+
+.copy-btn {
+  background: none;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  color: var(--muted);
+  text-transform: uppercase;
+  transition: all 0.2s;
+  display: none;
+}
+.copy-btn:hover { color: var(--ink); border-color: var(--ink); }
+.copy-btn.visible { display: block; }
+
+.translate-btn {
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 2px;
+  padding: 10px 28px;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 300;
+  font-style: italic;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.translate-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+.translate-btn:hover::after { transform: translateX(0); }
+.translate-btn span { position: relative; z-index: 1; }
+.translate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.translate-btn:disabled::after { display: none; }
+
+.shortcut-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+
+/* History */
+.history-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  transition: color 0.2s;
+}
+.history-toggle:hover { color: var(--ink); }
+.history-toggle .chev { transition: transform 0.3s; }
+.history-toggle.open .chev { transform: rotate(180deg); }
+
+.history-section {
+  border: 0.5px solid var(--border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  display: none;
+}
+.history-section.visible { display: block; animation: fadeUp 0.2s ease both; }
+
+.history-header {
+  padding: 10px 16px;
+  background: var(--paper-warm);
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.history-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.clear-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: color 0.2s;
+  padding: 0;
+}
+.clear-btn:hover { color: var(--accent); }
+
+.history-list { max-height: 320px; overflow-y: auto; }
+.history-list::-webkit-scrollbar { width: 3px; }
+.history-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+.history-empty {
+  padding: 32px;
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--muted);
+  opacity: 0.6;
+}
+.history-item {
+  padding: 13px 16px;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.history-item:last-child { border-bottom: none; }
+.history-item:hover { background: var(--paper-warm); }
+.hi-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hi-lang {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.hi-text {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hi-result .hi-text { color: var(--accent); }
+.hi-meta { font-family: var(--mono); font-size: 9px; color: var(--muted); opacity: 0.5; }
+
+.error-msg { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.04em; }
+
+/* Footer */
+footer {
+  padding: 1.5rem 0;
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeUp 0.7s ease 0.2s both;
+}
+.footer-left {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.lang-pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pill {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 0.5px solid var(--border);
+  border-radius: 1px;
+  padding: 3px 7px;
+  opacity: 0.6;
+}
+
+@keyframes fadeDown {
+  from { opacity:0; transform:translateY(-12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .layout { padding: 0 1.25rem; }
+  .panels { grid-template-columns: 1fr; }
+  .panel:first-child { border-right: none; border-bottom: 0.5px solid var(--border-strong); }
+  .lang-label { display: none; }
+  .lang-pills { display: none; }
+  .custom-row { grid-template-columns: 1fr 1fr; }
+  header { gap: 10px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <header>
+    <div class="logo">L<em>i</em>ngua</div>
+    <button class="theme-btn" id="themeBtn" aria-expanded="false" aria-controls="themeDrawer">
+      <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6.5" cy="6.5" r="2.5"/>
+        <path d="M6.5 1v1.2M6.5 11.3V12.5M1 6.5h1.2M11.3 6.5H12.5M2.9 2.9l.85.85M9.25 9.25l.85.85M9.25 3.75l-.85.85M3.75 9.25l-.85.85"/>
+      </svg>
+      Appearance
+    </button>
+  </header>
+
+  <!-- Theme drawer — sits between header and main, outside the main grid area -->
+  <div class="theme-drawer" id="themeDrawer" role="region" aria-label="Appearance settings">
+
+    <div>
+      <div class="ts-label">Color theme</div>
+      <div class="color-presets" id="colorPresets"></div>
+    </div>
+
+    <div>
+      <div class="ts-label">Custom colors</div>
+      <div class="custom-row">
+        <div class="color-field">
+          <label for="cPaper">Background</label>
+          <input type="color" id="cPaper" value="#f5f0e8">
+        </div>
+        <div class="color-field">
+          <label for="cInk">Text</label>
+          <input type="color" id="cInk" value="#1a1714">
+        </div>
+        <div class="color-field">
+          <label for="cAccent">Accent</label>
+          <input type="color" id="cAccent" value="#c8602a">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ts-label">Translation font</div>
+      <div class="font-options" id="fontOptions"></div>
+    </div>
+
+    <div>
+      <div class="ts-label">Text size</div>
+      <div class="size-row">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted);">A</span>
+        <input type="range" id="sizeSlider" min="14" max="26" step="1" value="18" aria-label="Text size">
+        <span style="font-family:var(--mono);font-size:15px;color:var(--muted);">A</span>
+        <span class="size-badge" id="sizeBadge">18px</span>
+        <span class="size-preview" id="sizePreview">Lingua</span>
+      </div>
+    </div>
+
+    <button class="reset-btn" id="resetBtn">↺ Reset to defaults</button>
+  </div>
+
+  <main>
+    <div class="lang-row">
+      <div class="lang-select-wrap">
+        <span class="lang-label">From</span>
+        <select id="fromLang">
+          <option value="auto">Auto-detect</option>
+          <option value="Chinese">Chinese 中文</option>
+          <option value="English">English</option>
+          <option value="Japanese">Japanese 日本語</option>
+          <option value="Korean">Korean 한국어</option>
+          <option value="French">French Français</option>
+          <option value="German">German Deutsch</option>
+          <option value="Spanish">Spanish Español</option>
+          <option value="Italian">Italian Italiano</option>
+          <option value="Russian">Russian Русский</option>
+          <option value="Arabic">Arabic العربية</option>
+          <option value="Portuguese">Portuguese Português</option>
+        </select>
+      </div>
+      <button class="swap-btn" id="swapBtn" title="Swap languages" aria-label="Swap languages">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+          <path d="M1 4h12M10 1l3 3-3 3M13 10H1M4 7l-3 3 3 3"/>
+        </svg>
+      </button>
+      <div class="lang-select-wrap" style="justify-content:flex-end;">
+        <span class="lang-label">To</span>
+        <select id="toLang">
+          <option value="English">English</option>
+          <option value="Chinese">Chinese 中文</option>
+          <option value="Japanese">Japanese 日本語</option>
+          <option value="Korean">Korean 한국어</option>
+          <option value="French">French Français</option>
+          <option value="German">German Deutsch</option>
+          <option value="Spanish">Spanish Español</option>
+          <option value="Italian">Italian Italiano</option>
+          <option value="Russian">Russian Русский</option>
+          <option value="Arabic">Arabic العربية</option>
+          <option value="Portuguese">Portuguese Português</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Source</span>
+          <span class="char-count" id="charCount">0 chars</span>
+        </div>
+        <textarea id="inputText" placeholder="Begin typing…" aria-label="Source text" spellcheck="false"></textarea>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Translation</span>
+          <span class="char-count" id="outCharCount"></span>
+        </div>
+        <div class="output-panel" id="outputPanel">
+          <span class="output-placeholder" id="placeholder">Your translation will appear here.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <div class="status" id="statusMsg"></div>
+      <div class="btn-row">
+        <button class="copy-btn" id="copyBtn">Copy</button>
+        <button class="translate-btn" id="translateBtn"><span>Translate →</span></button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <button class="history-toggle" id="historyToggle" aria-expanded="false" aria-controls="historySection">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="6" cy="6" r="5"/><path d="M6 3v3l2 1.5"/></svg>
+        History
+        <svg class="chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M2 3.5L5 6.5L8 3.5"/></svg>
+      </button>
+      <div class="shortcut-hint">⌘ + Enter to translate</div>
+    </div>
+
+    <div class="history-section" id="historySection" role="region" aria-label="Translation history">
+      <div class="history-header">
+        <span class="history-title">Translation History</span>
+        <button class="clear-btn" id="clearHistoryBtn">Clear all</button>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty" id="historyEmpty">No translations yet.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-left">Lingua v1.1</div>
+    <div class="lang-pills">
+      <span class="pill">ZH</span><span class="pill">EN</span><span class="pill">JA</span>
+      <span class="pill">KO</span><span class="pill">FR</span><span class="pill">DE</span>
+      <span class="pill">ES</span><span class="pill">IT</span><span class="pill">RU</span>
+      <span class="pill">AR</span><span class="pill">PT</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+
+// ── Theme data ──
+const PRESETS = [
+  { name:'Parchment', paper:'#f5f0e8', warm:'#ede6d6', ink:'#1a1714', accent:'#c8602a', muted:'#8a7f72' },
+  { name:'Midnight',  paper:'#12111a', warm:'#1c1b28', ink:'#e8e4f0', accent:'#9b7fe8', muted:'#6e6a88' },
+  { name:'Sage',      paper:'#f0f4ee', warm:'#e4ece0', ink:'#1e2a1e', accent:'#4a7c59', muted:'#7a9275' },
+  { name:'Slate',     paper:'#f0f2f5', warm:'#e4e8ee', ink:'#1a1f2e', accent:'#3a6ea8', muted:'#7a8899' },
+  { name:'Rose',      paper:'#fdf0f2', warm:'#f5e0e4', ink:'#2a1418', accent:'#b84a60', muted:'#9a7070' },
+  { name:'Charcoal',  paper:'#1e1e1e', warm:'#282828', ink:'#e0ddd8', accent:'#e8a838', muted:'#888880' },
+  { name:'Cream',     paper:'#fffdf5', warm:'#f5f0e0', ink:'#2a2510', accent:'#b87a20', muted:'#908060' },
+  { name:'Ocean',     paper:'#f0f6fa', warm:'#e0eef5', ink:'#0e2233', accent:'#1a7aaa', muted:'#6090aa' },
+];
+
+const FONTS = [
+  { key:'cormorant', label:'Cormorant', css:"'Cormorant Garamond', Georgia, serif" },
+  { key:'playfair',  label:'Playfair',  css:"'Playfair Display', Georgia, serif"   },
+  { key:'lora',      label:'Lora',      css:"'Lora', Georgia, serif"               },
+  { key:'ibmplex',   label:'IBM Plex',  css:"'IBM Plex Serif', Georgia, serif"     },
+  { key:'crimson',   label:'Crimson',   css:"'Crimson Pro', Georgia, serif"        },
+  { key:'grotesk',   label:'Grotesk',   css:"'Space Grotesk', sans-serif"          },
+];
+
+const DEFAULTS = { pi: 0, fk: 'cormorant', sz: 18 };
+
+// ── Saved prefs ──
+let prefs = {};
+try { prefs = JSON.parse(localStorage.getItem('lingua_theme') || '{}'); } catch(e) {}
+let activePi = prefs.pi ?? DEFAULTS.pi;
+let activeFk = prefs.fk ?? DEFAULTS.fk;
+let activeSz = prefs.sz ?? DEFAULTS.sz;
+let customC  = prefs.cc ?? null;
+
+function savePrefs() {
+  localStorage.setItem('lingua_theme', JSON.stringify({ pi: activePi, fk: activeFk, sz: activeSz, cc: customC }));
+}
+
+// ── Color utils ──
+function isDark(hex) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return (0.299*r+0.587*g+0.114*b) < 128;
+}
+function rgba(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function shift(hex, n) {
+  return '#'+[1,3,5].map(i=>Math.min(255,Math.max(0,parseInt(hex.slice(i,i+2),16)+n)).toString(16).padStart(2,'0')).join('');
+}
+function blend(h1, h2, t) {
+  return '#'+[1,3,5].map(i=>Math.round(parseInt(h1.slice(i,i+2),16)*(1-t)+parseInt(h2.slice(i,i+2),16)*t).toString(16).padStart(2,'0')).join('');
+}
+
+// ── Apply theme ──
+function applyPreset(p) {
+  root.style.setProperty('--paper', p.paper);
+  root.style.setProperty('--paper-warm', p.warm);
+  root.style.setProperty('--ink', p.ink);
+  root.style.setProperty('--accent', p.accent);
+  root.style.setProperty('--muted', p.muted);
+  const dark = isDark(p.paper);
+  root.style.setProperty('--border', rgba(p.ink, dark ? 0.10 : 0.12));
+  root.style.setProperty('--border-strong', rgba(p.ink, dark ? 0.22 : 0.25));
+}
+
+function applyFont(fk) {
+  const f = FONTS.find(f=>f.key===fk) || FONTS[0];
+  root.style.setProperty('--serif', f.css);
+}
+
+function applySize(sz) {
+  root.style.setProperty('--text-size', sz+'px');
+  $('sizeBadge').textContent = sz+'px';
+  $('sizePreview').style.fontSize = sz+'px';
+}
+
+// ── Build swatches ──
+const presetsEl = $('colorPresets');
+PRESETS.forEach((p, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'color-swatch' + (i===activePi && !customC ? ' active' : '');
+  btn.style.background = p.paper;
+  btn.style.boxShadow = `inset 0 0 0 5px ${p.paper}, inset 0 0 0 8px ${p.accent}`;
+  btn.title = p.name;
+  btn.setAttribute('aria-label', p.name);
+  btn.addEventListener('click', () => {
+    activePi = i;
+    customC = null;
+    applyPreset(PRESETS[i]);
+    syncPickers(PRESETS[i]);
+    presetsEl.querySelectorAll('.color-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+    savePrefs();
+  });
+  presetsEl.appendChild(btn);
+});
+
+function syncPickers(p) {
+  $('cPaper').value = p.paper;
+  $('cInk').value   = p.ink;
+  $('cAccent').value = p.accent;
+}
+
+// ── Custom color pickers ──
+function applyCustom() {
+  const paper = $('cPaper').value, ink = $('cInk').value, accent = $('cAccent').value;
+  const dark = isDark(paper);
+  const warm = shift(paper, dark ? 10 : -10);
+  root.style.setProperty('--paper', paper);
+  root.style.setProperty('--paper-warm', warm);
+  root.style.setProperty('--ink', ink);
+  root.style.setProperty('--accent', accent);
+  root.style.setProperty('--muted', blend(ink, paper, 0.5));
+  root.style.setProperty('--border', rgba(ink, dark ? 0.10 : 0.12));
+  root.style.setProperty('--border-strong', rgba(ink, dark ? 0.22 : 0.25));
+  customC = { paper, ink, accent, warm };
+  presetsEl.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
+  savePrefs();
+}
+$('cPaper').addEventListener('input', applyCustom);
+$('cInk').addEventListener('input', applyCustom);
+$('cAccent').addEventListener('input', applyCustom);
+
+// ── Build font options ──
+const fontsEl = $('fontOptions');
+FONTS.forEach(f => {
+  const btn = document.createElement('button');
+  btn.className = 'font-option' + (f.key===activeFk ? ' active' : '');
+  btn.innerHTML = `<span class="fo-name">${f.label}</span><span class="fo-preview" style="font-family:${f.css}">The art of words</span>`;
+  btn.addEventListener('click', () => {
+    activeFk = f.key;
+    applyFont(f.key);
+    fontsEl.querySelectorAll('.font-option').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    savePrefs();
+  });
+  fontsEl.appendChild(btn);
+});
+
+// ── Size slider ──
+const slider = $('sizeSlider');
+slider.value = activeSz;
+slider.addEventListener('input', () => {
+  activeSz = parseInt(slider.value);
+  applySize(activeSz);
+  savePrefs();
+});
+
+// ── Reset ──
+$('resetBtn').addEventListener('click', () => {
+  activePi = DEFAULTS.pi; activeFk = DEFAULTS.fk; activeSz = DEFAULTS.sz; customC = null;
+  applyPreset(PRESETS[0]);
+  syncPickers(PRESETS[0]);
+  presetsEl.querySelectorAll('.color-swatch').forEach((s,i)=>s.classList.toggle('active',i===0));
+  applyFont(DEFAULTS.fk);
+  fontsEl.querySelectorAll('.font-option').forEach((b,i)=>b.classList.toggle('active',FONTS[i].key===DEFAULTS.fk));
+  slider.value = DEFAULTS.sz;
+  applySize(DEFAULTS.sz);
+  savePrefs();
+});
+
+// ── Load saved ──
+(function init() {
+  if (customC) {
+    const { paper, ink, accent, warm } = customC;
+    const dark = isDark(paper);
+    root.style.setProperty('--paper', paper);
+    root.style.setProperty('--paper-warm', warm || shift(paper, dark?10:-10));
+    root.style.setProperty('--ink', ink);
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--muted', blend(ink, paper, 0.5));
+    root.style.setProperty('--border', rgba(ink, dark?0.10:0.12));
+    root.style.setProperty('--border-strong', rgba(ink, dark?0.22:0.25));
+    $('cPaper').value = paper; $('cInk').value = ink; $('cAccent').value = accent;
+  } else {
+    applyPreset(PRESETS[activePi]);
+    syncPickers(PRESETS[activePi]);
+  }
+  applyFont(activeFk);
+  applySize(activeSz);
+})();
+
+// ── Theme toggle ──
+$('themeBtn').addEventListener('click', () => {
+  const open = $('themeDrawer').classList.toggle('open');
+  $('themeBtn').setAttribute('aria-expanded', open);
+});
+
+// ── History ──
+let hist = JSON.parse(sessionStorage.getItem('lingua_hist') || '[]');
+function saveHist() { sessionStorage.setItem('lingua_hist', JSON.stringify(hist)); }
+function ago(ts) {
+  const d = Math.floor((Date.now()-ts)/1000);
+  if (d<60) return 'just now';
+  if (d<3600) return Math.floor(d/60)+'m ago';
+  return Math.floor(d/3600)+'h ago';
+}
+function trunc(s,n) { return s.length>n ? s.slice(0,n)+'…' : s; }
+
+function renderHist() {
+  $('historyList').querySelectorAll('.history-item').forEach(e=>e.remove());
+  if (!hist.length) { $('historyEmpty').style.display=''; return; }
+  $('historyEmpty').style.display='none';
+  [...hist].reverse().forEach(item => {
+    const d = document.createElement('div');
+    d.className='history-item'; d.setAttribute('role','button'); d.setAttribute('tabindex','0');
+    d.innerHTML=`
+      <div class="hi-col">
+        <span class="hi-lang">${item.from==='auto'?'Auto':item.from}</span>
+        <span class="hi-text">${trunc(item.src,60)}</span>
+        <span class="hi-meta">${ago(item.ts)}</span>
+      </div>
+      <div class="hi-col hi-result">
+        <span class="hi-lang">${item.to}</span>
+        <span class="hi-text">${trunc(item.res,60)}</span>
+      </div>`;
+    d.addEventListener('click', ()=>restoreHist(item));
+    d.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' ')restoreHist(item); });
+    $('historyList').appendChild(d);
+  });
+}
+
+function restoreHist(item) {
+  $('fromLang').value = item.from; $('toLang').value = item.to;
+  $('inputText').value = item.src;
+  $('charCount').textContent = item.src.length+' chars';
+  const op = $('outputPanel');
+  op.innerHTML=''; op.appendChild(document.createTextNode(item.res));
+  translatedText = item.res;
+  $('outCharCount').textContent = item.res.length+' chars';
+  $('copyBtn').classList.add('visible');
+  setStatus('','');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+$('historyToggle').addEventListener('click', ()=>{
+  const open=$('historySection').classList.toggle('visible');
+  $('historyToggle').classList.toggle('open',open);
+  $('historyToggle').setAttribute('aria-expanded',open);
+});
+$('clearHistoryBtn').addEventListener('click', ()=>{ hist=[]; saveHist(); renderHist(); });
+renderHist();
+
+// ── Translator ──
+let translatedText='', isTranslating=false;
+
+$('inputText').addEventListener('input', ()=>{ $('charCount').textContent=$('inputText').value.length+' chars'; });
+
+$('swapBtn').addEventListener('click', ()=>{
+  if($('fromLang').value==='auto') return;
+  [$('fromLang').value,$('toLang').value]=[$('toLang').value,$('fromLang').value];
+  if(translatedText){ $('inputText').value=translatedText; $('charCount').textContent=translatedText.length+' chars'; clearOut(); }
+});
+
+$('copyBtn').addEventListener('click', async ()=>{
+  try { await navigator.clipboard.writeText(translatedText); $('copyBtn').textContent='Copied ✓'; setTimeout(()=>$('copyBtn').textContent='Copy',1800); } catch(e){}
+});
+
+function setStatus(type,msg) {
+  const s=$('statusMsg');
+  if(type==='loading') s.innerHTML='<span class="status-dot"></span>'+msg;
+  else if(type==='error') s.innerHTML='<span class="error-msg">'+msg+'</span>';
+  else s.textContent=msg;
+}
+
+function clearOut() {
+  translatedText='';
+  const op=$('outputPanel');
+  op.innerHTML=''; op.prepend($('placeholder')); $('placeholder').style.display='';
+  $('copyBtn').classList.remove('visible'); $('outCharCount').textContent='';
+}
+
+$('translateBtn').addEventListener('click', doTranslate);
+$('inputText').addEventListener('keydown', e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='Enter')doTranslate(); });
+
+async function doTranslate() {
+  const text=$('inputText').value.trim();
+  if(!text||isTranslating) return;
+  const from=$('fromLang').value, to=$('toLang').value;
+  const prompt=from==='auto'
+    ? `Translate the following text into ${to}. Output only the translation, nothing else:\n\n${text}`
+    : `Translate the following ${from} text into ${to}. Output only the translation, nothing else:\n\n${text}`;
+
+  isTranslating=true; $('translateBtn').disabled=true;
+  $('copyBtn').classList.remove('visible'); translatedText='';
+  const op=$('outputPanel'); op.innerHTML='';
+  const cursor=document.createElement('span'); cursor.className='cursor-blink'; op.appendChild(cursor);
+  setStatus('loading','Translating…');
+
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, stream:true,
+        messages:[{role:'user',content:prompt}] })
+    });
+    if(!res.ok) throw new Error('API error '+res.status);
+
+    const reader=res.body.getReader(), dec=new TextDecoder();
+    const tn=document.createTextNode(''); op.insertBefore(tn,cursor);
+
+    while(true) {
+      const {done,value}=await reader.read(); if(done) break;
+      for(const line of dec.decode(value).split('\n')) {
+        if(!line.startsWith('data: ')) continue;
+        const raw=line.slice(6); if(raw==='[DONE]') continue;
+        try {
+          const p=JSON.parse(raw);
+          if(p.type==='content_block_delta'&&p.delta?.text) {
+            translatedText+=p.delta.text; tn.textContent=translatedText;
+            $('outCharCount').textContent=translatedText.length+' chars';
+          }
+        } catch(e){}
+      }
+    }
+
+    cursor.remove();
+    if(translatedText) {
+      setStatus('',''); $('copyBtn').classList.add('visible');
+      hist.push({src:text,res:translatedText,from,to,ts:Date.now()});
+      if(hist.length>50) hist.shift();
+      saveHist(); renderHist();
+    } else throw new Error('No result received');
+
+  } catch(err) {
+    cursor.remove(); setStatus('error',err.message||'Something went wrong.');
+  } finally { isTranslating=false; $('translateBtn').disabled=false; }
+}
+</script>
+</body>
+</html>
