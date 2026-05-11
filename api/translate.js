@@ -1,8 +1,13 @@
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') return res.status(405).end();
 
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
@@ -15,15 +20,22 @@ export default async function handler(req, res) {
       body: JSON.stringify(req.body),
     });
 
-    res.setHeader('Content-Type', upstream.headers.get('content-type'));
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'text/event-stream');
     res.status(upstream.status);
-    upstream.body.pipeTo(new WritableStream({
-      write(chunk) { res.write(chunk); },
-      close() { res.end(); },
-    }));
+
+    const reader = upstream.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(value);
+    }
+    res.end();
+
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 }
 
-export const config = { api: { bodyParser: true } };
+export const config = {
+  api: { bodyParser: true, responseLimit: false },
+};
