@@ -1,0 +1,3 @@
+{
+  "rewrites": [{ "source": "/api/translate", "destination": "/api/translate" }]
+}
