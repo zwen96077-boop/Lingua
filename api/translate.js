@@ -6,12 +6,9 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const buffers = [];
-    for await (const chunk of req) {
-      buffers.push(chunk);
-    }
-    const rawBody = Buffer.concat(buffers).toString();
-    const body = JSON.parse(rawBody);
+    const body = req.body;
+    console.log('body:', JSON.stringify(body));
+    console.log('key exists:', !!process.env.ANTHROPIC_API_KEY);
 
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -24,9 +21,12 @@ module.exports = async function handler(req, res) {
     });
 
     const text = await upstream.text();
+    console.log('status:', upstream.status);
+    console.log('response:', text.slice(0, 200));
     res.status(upstream.status).send(text);
 
   } catch (e) {
+    console.log('error:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
