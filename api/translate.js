@@ -1,5 +1,3 @@
-const https = require('https');
-
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,6 +10,9 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
+    let body = req.body;
+    if (typeof body === 'string') body = JSON.parse(body);
+
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -19,7 +20,7 @@ module.exports = async function handler(req, res) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(body),
     });
 
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'text/event-stream');
