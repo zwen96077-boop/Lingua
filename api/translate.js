@@ -1,4 +1,6 @@
-export default async function handler(req, res) {
+const https = require('https');
+
+module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -34,8 +36,4 @@ export default async function handler(req, res) {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-}
-
-export const config = {
-  api: { bodyParser: true, responseLimit: false },
 };
