@@ -1,18 +1,11 @@
 module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(200).end();
-  }
-
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
   try {
-    let body = req.body;
-    if (typeof body === 'string') body = JSON.parse(body);
-
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -20,19 +13,11 @@ module.exports = async function handler(req, res) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(req.body),
     });
 
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'text/event-stream');
-    res.status(upstream.status);
-
-    const reader = upstream.body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value);
-    }
-    res.end();
+    const text = await upstream.text();
+    res.status(upstream.status).send(text);
 
   } catch (e) {
     res.status(500).json({ error: e.message });
