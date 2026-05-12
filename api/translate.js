@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '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',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
