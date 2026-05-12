@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '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',
+        'x-api-key': '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',
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(body),
